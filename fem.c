@@ -36,18 +36,18 @@ int main(){
 
     for (i=0; i<N; i++){
         if (cond_d[i]==Dirichlet) {
-            
+            b[i]=1;
             for (j=0; j<N; j++){
                 A_global[i][j]=0;
             }
             A_global[i][i]=1;
         }
-       }
+     }
                 
    
       
 	construct_global_matrix(A_global);
-	/*for (i=0; i<N; i++){
+	for (i=0; i<N; i++){
 		for(j=0; j<N; j++){
 		    
 			   if ( i==j){
@@ -57,7 +57,7 @@ int main(){
 			      }
 			
 		}
-	}*/
+	}
 	return 0;
 }
 
@@ -80,8 +80,7 @@ void construct_b(double x[3], double y[3], double array_b[][2]){
 
 
 void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
-	int i,j,sel;
-	
+	int j,sel;
 
 		for (j=0; j<3; j++){
 			sel=connectivity[elem][j];
@@ -89,7 +88,6 @@ void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
 			x[j]=nodes[sel-1][0];
 			y[j]=nodes[sel-1][1];
 		}
-	
 }
 
 
@@ -108,22 +106,14 @@ void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
  */
 void gauss_elimination(double array[][3], double x[2])
 {
-	int i,j,k,n;
-	int sum=0;
-	double c;
+	int i,j;
 	double p[2][2]={ {0 ,1}, {1, 0} };
-	double array_temp[2][2];
-	
-	
+	double array_temp[2][3];
+
     /* Find the order */
-	n = sizeof(array[0]) / sizeof(array[0][0]) - 1;
+	/*n = sizeof(array[0]) / sizeof(array[0][0]) - 1;*/
 	
-	for (i=0; i<2; i++){
-	    for (j=0; j<3; j++){
-	        printf("%lf\n", array[i][j]);
-	      }
-	      }
-   
+	
     if (array[0][0] == 0){
             for (i=0; i<2; i++){
                   for (j=0; j<3; j++){
@@ -137,39 +127,26 @@ void gauss_elimination(double array[][3], double x[2])
                    }
               }
             x[1]=array[1][2]/array[1][1];
-            x[0]=(array[0][2]-array[0][1]*x[1])/array[0][0];
-           printf("x0=%lf, x1=%lf\n", x[0], x[1]);
-               return;                
+               
    }
     
-    /* loop for the generation of upper triangular matrix*/
-	for(j=0; j<n; j++) {
-        for(i=0; i<n; i++){
-		    if(i>j){
-                c=array[i][j]/array[j][j];
-                
-                for(k=0; k<n+1; k++){
-                    array[i][k]=array[i][k]-c*array[j][k];
-                }
-            }
-        }
+   else if  (array[1][0]==0){
+        x[1]=array[1][2]/array[1][1];
+        
+    }    
+    else if (array[1][1]==0){
+         x[1]=array[0][2]/array[1][0];
+         
+   }  
+   else{
+         for (i=0; i<3; i++){
+            array_temp[0][i]=array[0][i]+array[1][i]*(-array[0][0]);
+         }
+         x[1]=array_temp[0][2]/array_temp[0][1];
+         printf("array temp=%lf\n",array_temp[0][0]);
     }
-
-    x[n-1]=array[n-1][n]/array[n-1][n-1];
-
-    /* this loop is for backward substitution*/
-    for(i=n-2; i>=0; i--){
-        sum=0;
-        for(j=i; j<n; j++){
-            sum=sum+array[i][j]*x[j];
-        }
-        x[i]=(array[i][n]-sum)/array[i][i];
-    }
-    
-    for(i=0; i<n; i++){
-        printf("\nx%d=%lf\t\n",i,x[i]);
-    }
-    
+   x[0]=(array[0][2]-array[0][1]*x[1])/array[0][0];
+  /* printf("x0=%lf, x1=%lf\n", x[0],x[1]);*/
 }
 
 void local_stiffness(const double array_b[][2], double det, double array_local[][3]){
@@ -203,8 +180,8 @@ void construct_global_matrix(double A_global[][N]){
     double x[3],y[3],det;
     double array_b[2][2], array_local[3][3];
     
-   /*for (k=0; k<NT; k++){*/
-        find_cord_of_nodes(20,x,y,global_node);
+   for (k=0; k<NT; k++){
+        find_cord_of_nodes(k,x,y,global_node);
         construct_b(x,y,array_b);
         det=find_det(array_b);
         local_stiffness(array_b,det,array_local);      
@@ -213,7 +190,7 @@ void construct_global_matrix(double A_global[][N]){
                      A_global[global_node[i]][global_node[j]]= A_global[global_node[i]][global_node[j]] + array_local[i][j];
              }
         }
-   
+   }
 }
 
 
