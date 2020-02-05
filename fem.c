@@ -22,6 +22,7 @@ void construct_b(double x[3], double y[3], double array_b[][2]);
 void construct_global_matrix(double A_global[][N], double b[N]);
 void local_stiffness(const double array_b[][2], double det, double array_local[][3], double vector_local[3]); 
 void find_cord_of_nodes(int elem, double x[3], double y[3],int global_node[3]);
+int gauss_elimination_gsl(const double A[][N],double b[N], double u[N]);
 gsl_matrix *construct_gsl_matrix(const double A[][N]);
 gsl_vector *construct_gsl_vector(const double b[N]);
 
@@ -59,8 +60,10 @@ int main(){
         }
        
      }
+     
+     printf("is %lf\n",A_global[18][11]);
       
-   /*res=gauss_elimination_gsl(A_global,b,u);
+    res=gauss_elimination_gsl(A_global,b,u);
     if (res==0){
         printf("System solved succesfully\n");
     }
@@ -72,7 +75,7 @@ int main(){
     for (j=0; j<N; j++){
         fprintf(fp,"%lf %lf %lf\n", nodes[j][0], nodes[j][1], u[j]);
     }
-    fclose(fp);*/
+    fclose(fp);
     
 	return 0;
 }
@@ -99,9 +102,10 @@ void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
 
 		for (j=0; j<3; j++){
 			sel=connectivity[elem][j];
-			global_node[j]=connectivity[elem][j]-1;
+			global_node[j]=connectivity[elem][j];
 			x[j]=nodes[sel-1][0];
 			y[j]=nodes[sel-1][1];
+			
 		}
 }
 
@@ -161,7 +165,7 @@ void gauss_elimination(double array[][3], double x[2])
          printf("array temp=%lf\n",array_temp[0][0]);
     }
    x[0]=(array[0][2]-array[0][1]*x[1])/array[0][0];
-  /* printf("x0=%lf, x1=%lf\n", x[0],x[1]);*/
+   /*printf("gauss x0=%lf, gauss x1=%lf\n", x[0],x[1]);*/
 }
 
 void local_stiffness(const double array_b[][2], double det, double array_local[][3], double vector_local[3]){
@@ -172,7 +176,6 @@ void local_stiffness(const double array_b[][2], double det, double array_local[]
 	double lambda[2][3]={ {1,0,-1} , {0,1,-1} };
 	double array_b_aug[2][3]= { {array_b[0][0], array_b[0][1], 0}, {array_b[1][0], array_b[1][1], 0} };
 
-	
 	
 	for (i=0; i<3; i++){
 	          array_b_aug[0][2]=lambda[0][i];
@@ -202,9 +205,9 @@ void construct_global_matrix(double A_global[][N], double b[N]){
         det=find_det(array_b);
         local_stiffness(array_b,det,array_local,b);      
         for (i=0; i<3; i++){
-        b[global_node[i]]=global_node[i]+vector_local[i];
+        b[global_node[i]-1]=b[global_node[i]-1]+vector_local[i];
             for (j=0; j<3; j++){
-                     A_global[global_node[i]][global_node[j]]= A_global[global_node[i]][global_node[j]] + array_local[i][j];
+                     A_global[global_node[i]-1][global_node[j]-1]= A_global[global_node[i]-1][global_node[j]-1] + array_local[i][j];
              }
         }
    }
@@ -262,7 +265,7 @@ int gauss_elimination_gsl(const double A[][N], double b[N], double u[N]){
     gsl_linalg_LU_solve(A_m, p, b_v, u_v);
     
     printf("\nu = \n");
-    /*gsl_vector_fprintf (stdout, u_v, "%g");*/
+    gsl_vector_fprintf (stdout, u_v, "%g");
     
    
     for (i = 0; i < N; i++) {
