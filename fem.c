@@ -13,15 +13,19 @@
 #define d 3
 
 
-enum boundary_cond {inner_node,Dirichlet};
+typedef enum boundary_cond {
+    inner_node,Dirichlet
+}boundary_cond;
 
 
 double find_det(const double array_b[][2]);
 void gauss_elimination(double A[][3], double vector_x[2]);
 void construct_b(double x[3], double y[3], double array_b[][2]);
 void construct_global_matrix(double A_global[][N], double b[N]);
-void local_stiffness(const double array_b[][2], double det, double array_local[][3], double vector_local[3]); 
+void local_stiffness(const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]);
 void find_cord_of_nodes(int elem, double x[3], double y[3],int global_node[3]);
+void phi_value(const double x[3], double phi[3]);
+void construct_global_vector(double b[N], boundary_cond cond[N]);
 int gauss_elimination_gsl(const double A[][N],double b[N], double u[N]);
 gsl_matrix *construct_gsl_matrix(const double A[][N]);
 gsl_vector *construct_gsl_vector(const double b[N]);
@@ -49,6 +53,7 @@ int main(){
 	}
         
 	construct_global_matrix(A_global,b);
+
 	/*impose boundary condition*/
     for (i=0; i<N; i++){
         if (cond_d[i]==Dirichlet) {
@@ -61,7 +66,7 @@ int main(){
        
      }
      
-     printf("is %lf\n",A_global[18][11]);
+   
       
     res=gauss_elimination_gsl(A_global,b,u);
     if (res==0){
@@ -168,20 +173,19 @@ void gauss_elimination(double array[][3], double x[2])
    /*printf("gauss x0=%lf, gauss x1=%lf\n", x[0],x[1]);*/
 }
 
-void local_stiffness(const double array_b[][2], double det, double array_local[][3], double vector_local[3]){
+void local_stiffness(const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]){
 	int i,j;
 	double area=0.5;
-	double x1[2], x2[2];
+	double x1[2], x2[2], x3[2], phi[3];
     double inner_prod;
 	double lambda[2][3]={ {1,0,-1} , {0,1,-1} };
 	double array_b_aug[2][3]= { {array_b[0][0], array_b[0][1], 0}, {array_b[1][0], array_b[1][1], 0} };
 
-	
+
 	for (i=0; i<3; i++){
 	          array_b_aug[0][2]=lambda[0][i];
 	          array_b_aug[1][2]=lambda[1][i];
 	          gauss_elimination(array_b_aug,x1);
-	          vector_local[i]=area*det*(x1[0]+x1[1]);
 	          for (j=0; j<3; j++){ 
 	                array_b_aug[0][2]=lambda[0][j];
 	                array_b_aug[1][2]=lambda[1][j];
@@ -190,28 +194,44 @@ void local_stiffness(const double array_b[][2], double det, double array_local[]
 	                array_local[i][j]=area*det*inner_prod;
 	            
 	          }
+	          array_b_aug[0][2]=x[i];
+	          array_b_aug[1][2]=y[i];
+	          gauss_elimination(array_b_aug,x3);
+	          phi_value(x3,phi);
+	          vector_local[i]=area*det*phi[i];
+	          
 	 }
 
 }
 
+void phi_value(const double x[2], double phi[3]){
+    phi[0]= x[0];
+    phi[1]= x[1];
+    phi[2]= 1-x[0]-x[1];
+   }
+
 void construct_global_matrix(double A_global[][N], double b[N]){
     int i,j,k,global_node[3];
     double x[3],y[3],det;
-    double array_b[2][2], array_local[3][3],vector_local[3];
+    double array_b[2][2], array_local[3][3], vector_local[3];
     
    for (k=0; k<NT; k++){
         find_cord_of_nodes(k,x,y,global_node);
         construct_b(x,y,array_b);
         det=find_det(array_b);
-        local_stiffness(array_b,det,array_local,b);      
+        local_stiffness(array_b,det,x,y,array_local,vector_local);      
         for (i=0; i<3; i++){
-        b[global_node[i]-1]=b[global_node[i]-1]+vector_local[i];
+            b[global_node[i]-1]=b[global_node[i]-1]+vector_local[i];
             for (j=0; j<3; j++){
                      A_global[global_node[i]-1][global_node[j]-1]= A_global[global_node[i]-1][global_node[j]-1] + array_local[i][j];
              }
         }
    }
 }
+
+
+
+
 
 gsl_matrix *construct_gsl_matrix(const double A[][N]){
     int i,j;
@@ -262,6 +282,7 @@ int gauss_elimination_gsl(const double A[][N], double b[N], double u[N]){
     /* Solve the system*/
   
     gsl_linalg_LU_decomp(A_m, p, &s);
+    
     gsl_linalg_LU_solve(A_m, p, b_v, u_v);
     
     printf("\nu = \n");
