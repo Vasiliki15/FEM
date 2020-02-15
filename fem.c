@@ -20,13 +20,14 @@ typedef enum boundary_cond {
 
 double find_det(const double array_b[][2]);
 void gauss_elimination(double A[][3], double vector_x[2]);
-void construct_b(double x[3], double y[3], double array_b[][2]);
+void construct_b(const double x[3],const double y[3], double array_b_T[][2]);
+void construct_b(const double x[3],const double y[3], double array_b[][2]);
 void construct_global_matrix(double A_global[][N], double b[N]);
-void local_stiffness(const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]);
-void find_cord_of_nodes(int elem, double x[3], double y[3],int global_node[3]);
+void local_stiffness(const double array_b_T[][2],const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]);
+void find_cord_of_nodes(const int elem, double x[3], double y[3],int global_node[3]);
 void phi_value(const double x[3], double phi[3]);
 void construct_global_vector(double b[N], boundary_cond cond[N]);
-int gauss_elimination_gsl(const double A[][N],double b[N], double u[N]);
+int gauss_elimination_gsl(const double A[][N], const double b[N], double u[N]);
 gsl_matrix *construct_gsl_matrix(const double A[][N]);
 gsl_vector *construct_gsl_vector(const double b[N]);
 
@@ -50,8 +51,8 @@ int main(){
 		else {
 			cond_d[i]=inner_node;
 		}
-	}
-        
+	} 
+	   
 	construct_global_matrix(A_global,b);
 
 	/*impose boundary condition*/
@@ -63,10 +64,7 @@ int main(){
             }
             A_global[i][i]=1;
         }
-       
-     }
-     
-   
+    }
       
     res=gauss_elimination_gsl(A_global,b,u);
     if (res==0){
@@ -93,24 +91,29 @@ double find_det(const double array_b[][2]){
 
 
 
-void construct_b(double x[3], double y[3], double array_b[][2]){
+void construct_b_T(const double x[3],const double y[3], double array_b_T[][2]){
+	array_b_T[0][0]=x[0]-x[2];
+	array_b_T[0][1]=y[0]-y[2];
+	array_b_T[1][0]=x[1]-x[2];
+	array_b_T[1][1]=y[1]-y[2];
+}
 
+void construct_b(const double x[3],const double y[3], double array_b[][2]){
 	array_b[0][0]=x[0]-x[2];
-	array_b[0][1]=y[0]-y[2];
-	array_b[1][0]=x[1]-x[2];
+	array_b[0][1]=x[1]-x[2];
+	array_b[1][0]=y[0]-y[2];
 	array_b[1][1]=y[1]-y[2];
 }
 
 
-void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
+void find_cord_of_nodes(const int elem, double x[3], double y[3], int global_node[3]){
 	int j,sel;
 
 		for (j=0; j<3; j++){
 			sel=connectivity[elem][j];
 			global_node[j]=connectivity[elem][j];
 			x[j]=nodes[sel-1][0];
-			y[j]=nodes[sel-1][1];
-			
+			y[j]=nodes[sel-1][1];		
 		}
 }
 
@@ -128,21 +131,15 @@ void find_cord_of_nodes(int elem, double x[3], double y[3], int global_node[3]){
  *
  * @return none
  */
-void gauss_elimination(double array[][3], double x[2])
-{
+void gauss_elimination(double array[][3], double x[2]){
 	int i,j;
 	double p[2][2]={ {0 ,1}, {1, 0} };
 	double array_temp[2][3];
 
-    /* Find the order */
-	/*n = sizeof(array[0]) / sizeof(array[0][0]) - 1;*/
-	
-	
     if (array[0][0] == 0){
             for (i=0; i<2; i++){
                   for (j=0; j<3; j++){
-                        array_temp[i][j]=p[i][0]*array[0][j]+p[i][1]*array[1][j];
-                                
+                        array_temp[i][j]=p[i][0]*array[0][j]+p[i][1]*array[1][j];          
                    }
              }
               for (i=0; i<2; i++){
@@ -150,76 +147,68 @@ void gauss_elimination(double array[][3], double x[2])
                         array[i][j]=array_temp[i][j];
                    }
               }
-            x[1]=array[1][2]/array[1][1];
-               
+            x[1]=array[1][2]/array[1][1];    
    }
-    
    else if  (array[1][0]==0){
-        x[1]=array[1][2]/array[1][1];
-        
+        x[1]=array[1][2]/array[1][1];  
     }    
     else if (array[1][1]==0){
-         x[1]=array[0][2]/array[1][0];
-         
+         x[1]=array[0][2]/array[1][0];  
    }  
    else{
          for (i=0; i<3; i++){
             array_temp[0][i]=array[0][i]+array[1][i]*(-array[0][0]);
          }
          x[1]=array_temp[0][2]/array_temp[0][1];
-         printf("array temp=%lf\n",array_temp[0][0]);
     }
    x[0]=(array[0][2]-array[0][1]*x[1])/array[0][0];
-   /*printf("gauss x0=%lf, gauss x1=%lf\n", x[0],x[1]);*/
 }
 
-void local_stiffness(const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]){
+void local_stiffness(const double array_b_T[][2],const double array_b[][2],const double det,const double x[3],const double y[3], double array_local[][3], double vector_local[3]){
 	int i,j;
 	double area=0.5;
 	double x1[2], x2[2], x3[2], phi[3];
     double inner_prod;
 	double lambda[2][3]={ {1,0,-1} , {0,1,-1} };
+	double array_b_T_aug[2][3]= { {array_b_T[0][0], array_b_T[0][1], 0}, {array_b_T[1][0], array_b_T[1][1], 0} };
 	double array_b_aug[2][3]= { {array_b[0][0], array_b[0][1], 0}, {array_b[1][0], array_b[1][1], 0} };
 
-
 	for (i=0; i<3; i++){
-	          array_b_aug[0][2]=lambda[0][i];
-	          array_b_aug[1][2]=lambda[1][i];
-	          gauss_elimination(array_b_aug,x1);
+	          array_b_T_aug[0][2]=lambda[0][i];
+	          array_b_T_aug[1][2]=lambda[1][i];
+	          gauss_elimination(array_b_T_aug,x1);
 	          for (j=0; j<3; j++){ 
-	                array_b_aug[0][2]=lambda[0][j];
-	                array_b_aug[1][2]=lambda[1][j];
-	                gauss_elimination(array_b_aug,x2);
+	                array_b_T_aug[0][2]=lambda[0][j];
+	                array_b_T_aug[1][2]=lambda[1][j];
+	                gauss_elimination(array_b_T_aug,x2);
 	                inner_prod=x1[0]*x2[0]+x1[1]*x2[1];
 	                array_local[i][j]=area*det*inner_prod;
-	            
 	          }
 	          array_b_aug[0][2]=x[i];
 	          array_b_aug[1][2]=y[i];
 	          gauss_elimination(array_b_aug,x3);
 	          phi_value(x3,phi);
-	          vector_local[i]=area*det*phi[i];
-	          
+	          vector_local[i]=area*det*phi[i];       
 	 }
-
 }
 
 void phi_value(const double x[2], double phi[3]){
     phi[0]= x[0];
     phi[1]= x[1];
     phi[2]= 1-x[0]-x[1];
-   }
+}
 
 void construct_global_matrix(double A_global[][N], double b[N]){
     int i,j,k,global_node[3];
     double x[3],y[3],det;
-    double array_b[2][2], array_local[3][3], vector_local[3];
+    double array_b[2][2],array_b_T[2][2], array_local[3][3], vector_local[3];
     
    for (k=0; k<NT; k++){
         find_cord_of_nodes(k,x,y,global_node);
         construct_b(x,y,array_b);
+        construct_b_T(x,y,array_b_T);
         det=find_det(array_b);
-        local_stiffness(array_b,det,x,y,array_local,vector_local);      
+        local_stiffness(array_b_T,array_b,det,x,y,array_local,vector_local);      
         for (i=0; i<3; i++){
             b[global_node[i]-1]=b[global_node[i]-1]+vector_local[i];
             for (j=0; j<3; j++){
@@ -265,7 +254,7 @@ gsl_vector *construct_gsl_vector(const double b[N]){
     return gsl_v;
 }
 
-int gauss_elimination_gsl(const double A[][N], double b[N], double u[N]){
+int gauss_elimination_gsl(const double A[][N], const double b[N], double u[N]){
     int s,i;
 
      gsl_matrix *A_m = construct_gsl_matrix(A);
@@ -278,17 +267,12 @@ int gauss_elimination_gsl(const double A[][N], double b[N], double u[N]){
         return -1;
     }
     
-    
     /* Solve the system*/
-  
     gsl_linalg_LU_decomp(A_m, p, &s);
-    
     gsl_linalg_LU_solve(A_m, p, b_v, u_v);
-    
     printf("\nu = \n");
     gsl_vector_fprintf (stdout, u_v, "%g");
-    
-   
+ 
     for (i = 0; i < N; i++) {
         u[i]=gsl_vector_get(u_v,i);
     }
