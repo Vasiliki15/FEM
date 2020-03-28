@@ -200,10 +200,14 @@ void local_stiffness(const double array_b_T[][2],const double array_b[][2],const
 	 }
 }
 
-void phi_value(const double x[2], double phi[3]){
-    phi[0]= x[0];
-    phi[1]= x[1];
-    phi[2]= 1-x[0]-x[1];
+void phi_value(double phi[3]){
+/* The right-hand side is computed using Midpoint Quadrature on Triangles*/
+    double coef=1/6;
+    double f=1;
+    
+    phi[0]= f*coef*(1/2+1/2+0); /*Mindpoints of sides of a unit triangle for x*/
+    phi[1]= f*coef*(0+1/2+1/2); /*Mindpoints of sides of a unit triangle for y*/
+    phi[2]= f*coef*(1/2+0+1/2); /*Mindpoints of sides of a unit triangle for 1-x-y*/
 }
 
 void construct_global_matrix(double A_global[][N], double b[N]){
