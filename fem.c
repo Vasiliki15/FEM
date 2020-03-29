@@ -188,8 +188,8 @@ void local_stiffness(const double array_b_T[][2],const double array_b[][2],const
 	                inner_prod=x1[0]*x2[0]+x1[1]*x2[1];
 	                array_local[i][j]=area*det*inner_prod;
 	          }
-	          b_gsl[0]=lambda[0][j];
-	          b_gsl[1]=lambda[1][j];
+	          b_gsl[0]=lambda[0][i];
+	          b_gsl[1]=lambda[1][i];
 	          res= gauss_elimination_gsl_2(array_b, b_gsl, x3);
 	          if (res!=0){
               printf("there was an error in solving the system\n");
